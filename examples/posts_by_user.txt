@@ -1,0 +1,4 @@
+How many posts does Sam have?
+
+SELECT COUNT(*) FROM posts WHERE user_id = (SELECT id FROM users WHERE username = 'sam')
+AND deleted_at IS NULL

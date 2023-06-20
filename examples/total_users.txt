@@ -1,0 +1,5 @@
+How many users are there on this instance?
+
+SELECT COUNT(*) FROM users
+WHERE user_id > 0
+AND NOT EXISTS(SELECT 1 FROM anonymous_users WHERE anonymous_users.user_id = users.user_id)
