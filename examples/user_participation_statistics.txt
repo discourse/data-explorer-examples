@@ -1,0 +1,114 @@
+User Participation Statistics. Detailed statistics for the most active users.
+
+-- [params]
+-- int :from_days_ago = 0
+-- int :duration_days = 30
+WITH t AS (
+    SELECT CURRENT_TIMESTAMP - ((:from_days_ago + :duration_days) * (INTERVAL '1 days')) AS START,
+        CURRENT_TIMESTAMP - (:from_days_ago * (INTERVAL '1 days')) AS END
+),
+pr AS (
+    SELECT user_id, COUNT(1) AS visits,
+        SUM(posts_read) AS posts_read
+    FROM user_visits, t
+    WHERE posts_read > 0
+        AND visited_at > t.START
+        AND visited_at < t.
+        END
+    GROUP BY
+        user_id
+),
+pc AS (
+    SELECT user_id, COUNT(1) AS posts_created
+    FROM posts, t
+    WHERE
+        created_at > t.START
+        AND created_at < t.
+        END
+    GROUP BY
+        user_id
+),
+ttopics AS (
+    SELECT user_id, posts_count
+    FROM topics, t
+    WHERE created_at > t.START
+        AND created_at < t.
+        END
+),
+tc AS (
+    SELECT user_id, COUNT(1) AS topics_created
+    FROM ttopics
+    GROUP BY user_id
+),
+twr AS (
+    SELECT user_id, COUNT(1) AS topics_with_replies
+    FROM ttopics
+    WHERE posts_count > 1
+    GROUP BY user_id
+),
+tv AS (
+    SELECT user_id,
+        COUNT(DISTINCT(topic_id)) AS topics_viewed
+    FROM topic_views, t
+    WHERE viewed_at > t.START
+        AND viewed_at < t.
+        END
+    GROUP BY user_id
+),
+likes AS (
+    SELECT post_actions.user_id AS given_by_user_id,
+        posts.user_id AS received_by_user_id
+    FROM t,
+        post_actions
+        LEFT JOIN
+        posts
+        ON post_actions.post_id = posts.id
+    WHERE
+        post_actions.created_at > t.START
+        AND post_actions.created_at < t.
+        END
+        AND post_action_type_id = 2
+),
+lg AS (
+    SELECT given_by_user_id AS user_id,
+        COUNT(1) AS likes_given
+    FROM likes
+    GROUP BY user_id
+),
+lr AS (
+    SELECT received_by_user_id AS user_id,
+        COUNT(1) AS likes_received
+    FROM likes
+    GROUP BY user_id
+),
+e AS (
+    SELECT email, user_id
+    FROM user_emails u
+    WHERE u.PRIMARY = TRUE
+)
+SELECT
+    pr.user_id,
+    username,
+    name,
+    email,
+    visits,
+    COALESCE(topics_viewed, 0) AS topics_viewed,
+    COALESCE(posts_read, 0) AS posts_read,
+    COALESCE(posts_created, 0) AS posts_created,
+    COALESCE(topics_created, 0) AS topics_created,
+    COALESCE(topics_with_replies, 0) AS topics_with_replies,
+    COALESCE(likes_given, 0) AS likes_given,
+    COALESCE(likes_received, 0) AS likes_received
+FROM pr
+LEFT JOIN tv USING (user_id)
+LEFT JOIN pc USING (user_id)
+LEFT JOIN tc USING (user_id)
+LEFT JOIN twr USING (user_id)
+LEFT JOIN lg USING (user_id)
+LEFT JOIN lr USING (user_id)
+LEFT JOIN e USING (user_id)
+LEFT JOIN users ON pr.user_id = users.id
+ORDER BY
+    visits DESC,
+    posts_read DESC,
+    posts_created DESC

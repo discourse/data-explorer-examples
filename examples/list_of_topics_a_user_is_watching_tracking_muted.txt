@@ -1,0 +1,10 @@
+The query requires a ‘notification_level’ parameter. Use 0 for muted, 1 for regular, 2 for tracked and 3 for watched topics.
+
+-- [params]
+-- null int :user
+-- null int :notification_level
+
+SELECT t.category_id AS category_id, t.id AS topic_id, tu.last_visited_at AS topic_last_visited_at
+FROM topics t
+JOIN topic_users tu ON tu.topic_id = t.id AND tu.user_id = :user AND tu.notification_level = :notification_level
+ORDER BY tu.last_visited_at DESC

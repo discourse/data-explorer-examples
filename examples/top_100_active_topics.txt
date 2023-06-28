@@ -1,0 +1,20 @@
+Top 100 active topics based on the number of replies, it accepts a ‘months_ago’ parameter, defaults to 1 to give results for the last calendar month.
+
+-- [params]
+-- int :months_ago = 1
+
+WITH query_period AS
+(SELECT date_trunc('month', CURRENT_DATE) - INTERVAL ':months_ago months' AS period_start,
+                                                    date_trunc('month', CURRENT_DATE) - INTERVAL ':months_ago months' + INTERVAL '1 month' - INTERVAL '1 second' AS period_end)
+SELECT t.id AS topic_id,
+    t.category_id,
+    COUNT(p.id) AS reply_count
+FROM topics t
+JOIN posts p ON t.id = p.topic_id
+JOIN query_period qp ON p.created_at >= qp.period_start
+AND p.created_at <= qp.period_end
+WHERE t.archetype = 'regular'
+AND t.user_id > 0
+GROUP BY t.id
+ORDER BY COUNT(p.id) DESC, t.score DESC
+LIMIT 100

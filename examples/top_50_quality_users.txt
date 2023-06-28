@@ -1,0 +1,15 @@
+Top 50 quality users based on post score calculated using reply count, likes, incoming links, bookmarks, time spent and read count
+
+SELECT sum(p.score) / count(p) AS "average score per post",
+    count(p.id) AS post_count,
+    p.user_id
+FROM posts p
+JOIN users u ON u.id = p.user_id
+WHERE p.created_at >= CURRENT_DATE - INTERVAL '6 month'
+AND NOT u.admin
+AND u.active
+GROUP BY user_id,
+    u.views
+HAVING count(p.id) > 50
+ORDER BY sum(p.score) / count(p) DESC
+LIMIT 50

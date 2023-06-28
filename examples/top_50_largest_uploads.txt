@@ -1,0 +1,14 @@
+Top 50 largest uploads sorted by file size.
+
+SELECT posts.id AS post_id,
+    uploads.original_filename,
+    ROUND(uploads.filesize / 1000000.0, 2) AS size_in_mb,
+    uploads.extension,
+    uploads.created_at,
+    uploads.url
+FROM post_uploads
+JOIN uploads ON uploads.id = post_uploads.upload_id
+JOIN posts ON posts.id = post_uploads.post_id
+ORDER BY uploads.filesize DESC
+LIMIT 50
+

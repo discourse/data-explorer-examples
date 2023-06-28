@@ -1,0 +1,22 @@
+List the top tags per year.
+
+-- [params]
+-- integer :rank_max = 5
+
+WITH data AS (SELECT
+    tag_id,
+    EXTRACT(YEAR FROM created_at) AS year
+FROM topic_tags)
+
+SELECT year, rank, name, qt FROM (
+    SELECT
+  tag_id,
+  COUNT(tag_id) AS qt,
+  year,
+  rank() OVER (PARTITION BY year ORDER BY COUNT(tag_id) DESC) AS rank
+    FROM
+  data
+    GROUP BY year, tag_id) as rnk
+INNER JOIN tags ON tags.id = rnk.tag_id
+WHERE rank <= :rank_max
+ORDER BY year DESC, qt DESC

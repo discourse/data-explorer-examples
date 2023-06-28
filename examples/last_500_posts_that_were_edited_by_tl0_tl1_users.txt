@@ -1,0 +1,18 @@
+Last 500 posts that were edited by TL0/TL1 users. Help with fighting human-driven copy-paste spam
+
+SELECT
+    p.id AS post_id,
+    topic_id
+FROM posts p
+    JOIN users u
+        ON u.id = p.user_id
+    JOIN topics t
+        ON t.id = p.topic_id
+WHERE p.last_editor_id = p.user_id
+    AND p.self_edits > 0
+    AND (u.trust_level = 0 OR u.trust_level = 1)
+    AND p.deleted_at IS NULL
+    AND t.deleted_at IS NULL
+    AND t.archetype = 'regular'
+ORDER BY p.updated_at DESC
+LIMIT 500
