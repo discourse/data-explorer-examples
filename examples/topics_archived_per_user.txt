@@ -1,0 +1,10 @@
+How many topics has each user archived? 
+
+SELECT p.user_id,
+       count(*) as topics_archived
+FROM posts p
+JOIN topics t ON t.id = p.topic_id
+WHERE p.post_type = 3
+AND p.action_code = 'archived.enabled'
+AND t.archived = TRUE
+GROUP BY p.user_id

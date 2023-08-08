@@ -1,0 +1,5 @@
+How many total reactions have been used across all posts on the site? 
+
+SELECT reaction_value, COUNT(reaction_value)
+FROM discourse_reactions_reactions
+GROUP BY reaction_value

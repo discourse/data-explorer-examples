@@ -1,0 +1,18 @@
+Show me the number views each topic in a category has over a certain period of time. How many views do all topics in a category have? Accepts a `start_date`, `end_date`, and `category_name` parameter. 
+
+--[params]
+-- date :start_date = 2022-06-01
+-- date :end_date = 2023-01-01
+-- string :category_name
+
+SELECT 
+    c.name category,
+    tv.topic_id,
+    COUNT(*) AS number_of_views
+FROM topic_views tv
+INNER JOIN topics t ON t.id = tv.topic_id
+INNER JOIN categories c ON c.id = t.category_id
+WHERE tv.viewed_at::date BETWEEN :start_date AND :end_date
+    AND LOWER(c.name) LIKE LOWER(:category_name)
+GROUP BY c.name, tv.topic_id
+ORDER BY number_of_views DESC

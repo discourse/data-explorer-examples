@@ -1,0 +1,15 @@
+Total number of users per day. Show me the total number of logged in and anonymous users that visited the site each day.  Include a `start_date` and `end_date` parameter. How many anonymous and logged in users visited the site over a period of time? 
+
+--[params]
+-- date :start_date = 2022-12-01
+-- date :end_date = 2023-01-01
+
+SELECT
+    date_trunc('day', viewed_at)::DATE AS date,
+    COUNT (DISTINCT tv.ip_address) as anon_views,
+    COUNT (DISTINCT u.username) as user_views
+FROM topic_views tv
+FULL JOIN users u on u.id = tv.user_id
+WHERE tv.viewed_at::date BETWEEN :start_date AND :end_date
+GROUP BY date
+ORDER BY date DESC

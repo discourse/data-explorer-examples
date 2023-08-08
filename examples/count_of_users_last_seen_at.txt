@@ -1,0 +1,11 @@
+Show me how many users have been last seen since a specific date. How many users have been seen after a date? Include a `last_seen_after` date parameter.
+
+--[params]
+-- date :last_seen_after = 2023-01-01
+
+SELECT
+count(id)
+FROM users
+WHERE staged = false
+AND active = true
+AND last_seen_at::date >= :last_seen_after

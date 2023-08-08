@@ -1,0 +1,14 @@
+User Stats Report. Shows the username, last seen at date, email, number of topics views, number of posts read, number of posts created, and number of likes given for all users on the site. 
+
+SELECT u.username, 
+u.last_seen_at, 
+ue.email, COUNT(tv.topic_id) as "Topic Views", 
+us.posts_read_count as "Posts Read", 
+us.post_count as "Posts",
+us.likes_given as "Likes Given"
+FROM users u
+LEFT JOIN user_emails ue ON ue.user_id = u.id
+LEFT JOIN topic_views tv ON tv.user_id = u.id
+LEFT JOIN user_stats us ON us.user_id = u.id
+WHERE u.last_seen_at > date_trunc('hour', now()) - INTERVAL '24 hour'
+GROUP BY u.username, u.last_seen_at, ue.email, us.posts_read_count, us.post_count, us.likes_given

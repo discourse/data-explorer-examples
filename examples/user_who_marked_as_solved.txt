@@ -1,0 +1,8 @@
+Who marked a topic as solved? 
+
+SELECT target_topic_id, 
+       acting_user_id, 
+       created_at::date
+FROM user_actions
+WHERE action_type = 15
+ORDER BY created_at DESC

@@ -1,0 +1,74 @@
+Shows the number of topic created, replies posted, questions solved, and questions marked as solved by each user on the site for the selected timeframe. Accepts a `start_date` and `end_date` parameter
+
+-- [params]
+-- date :start_date 
+-- date :end_date
+
+
+WITH qtt_topics AS (
+    SELECT 
+        t.user_id,
+        COUNT(*) AS topics
+    FROM topics t
+    WHERE    
+        t.user_id > 0 
+        AND t.deleted_at ISNULL
+        AND t.archetype = 'regular'
+        AND t.created_at::date BETWEEN :start_date AND :end_date
+    GROUP BY t.user_id
+    ),
+    
+qtt_replies AS (
+    SELECT 
+        p.user_id,
+        COUNT(*) AS replies
+    FROM posts p
+    WHERE    
+        p.user_id > 0 
+        AND p.deleted_at ISNULL
+        AND p.post_number != 1
+        AND p.created_at::date BETWEEN :start_date AND :end_date
+    GROUP BY p.user_id
+    ),
+
+questions_solved AS (
+SELECT  ua.user_id, 
+        count(*) as q_solved
+FROM user_actions ua
+WHERE action_type=15
+GROUP BY ua.user_id
+),
+
+questions_marked_solved AS (
+SELECT  ua.acting_user_id, 
+        count(*) as q_marked
+FROM user_actions ua
+WHERE action_type=15
+GROUP BY ua.acting_user_id
+),
+
+
+
+total AS (
+    SELECT
+        COALESCE(qr.user_id, qt.user_id, qs.user_id, qms.acting_user_id) user_id,
+        COALESCE(topics,0) qtt_topics,
+        COALESCE(replies,0) qtt_replies,
+        COALESCE(q_solved,0) questions_solved,
+        COALESCE(q_marked,0) questions_marked_solved
+    FROM qtt_topics qt
+    FULL JOIN qtt_replies qr ON qt.user_id = qr.user_id
+    FULL JOIN questions_solved qs ON qt.user_id = qs.user_id
+    FULL JOIN questions_marked_solved qms ON qt.user_id = qms.acting_user_id
+    ORDER BY user_id
+)
+
+
+SELECT 
+    username,
+    qtt_topics as "topics created",
+    qtt_replies as "replies",
+    questions_solved,
+    questions_marked_solved
+FROM total
+INNER JOIN users u ON u.id = user_id

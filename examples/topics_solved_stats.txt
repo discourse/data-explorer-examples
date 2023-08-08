@@ -1,0 +1,125 @@
+A topics solved and unsolved status query. Shows a list of topics and their solved statuses, tags, visible status, archived status, topic creator, when the topic was created, title, views, who solved the topic, when the first reply was created, when the solution was posted, the number of replies the topic has, the total days the topic went without a solution, the time before the first reply in days and hours, and the time it took to post a solution in days and hours. Show me full statisitics about all solvable topics on the site. Requires the solved plugin to be enabled. 
+
+WITH valid_topics AS (
+    SELECT 
+        t.id,
+        t.user_id,
+        t.title,
+        t.visible,
+        t.archived,
+        t.views,
+        posts_count-1 AS "posts_count", 
+        t.created_at,
+        (CURRENT_DATE::date-t.created_at::date) AS "total_days"
+    FROM topics t
+    LEFT JOIN (SELECT topic_id, MIN(created_at) AS "created_at"
+                FROM posts
+                WHERE deleted_at ISNULL
+                    AND post_type = 1
+                    AND post_number > 1
+                GROUP BY topic_id) date_first_reply ON date_first_reply.topic_id = t.id
+    WHERE t.deleted_at ISNULL
+        AND t.archetype = 'regular'
+),
+
+solved_topics AS (
+    SELECT 
+        vt.id,
+        tcf.created_at
+    FROM topic_custom_fields tcf
+    INNER JOIN valid_topics vt ON vt.id = tcf.topic_id
+    WHERE tcf.name = 'accepted_answer_post_id'
+),
+
+solver AS (
+    SELECT
+    ua.user_id,
+    ua.target_topic_id,
+    ue.email,
+    string_agg(g.name, ', ' ORDER BY g.name) AS "groups"
+    FROM
+    user_actions ua
+    JOIN 
+    user_emails ue ON ua.user_id = ue.user_id
+    INNER JOIN group_users gu ON ua.user_id = gu.user_id
+    INNER JOIN groups g ON g.id = gu.group_id
+    WHERE
+    ua.action_type = 15
+    GROUP BY ua.user_id,ua.target_topic_id,ue.email, ua.created_at
+    ORDER BY
+    ua.created_at DESC
+),
+
+last_reply AS (
+
+    SELECT p.topic_id, p.user_id FROM posts p
+    INNER JOIN (SELECT topic_id, MAX(id) AS post FROM posts p
+                WHERE deleted_at ISNULL
+                AND post_type = 1
+                GROUP BY topic_id) x ON x.post = p.id
+),
+
+topics_asked AS (
+    SELECT
+        COUNT(vt.id) AS qtt,
+        vt.created_at
+    FROM valid_topics vt
+    GROUP BY vt.created_at
+),
+first_reply AS (
+    SELECT p.topic_id, p.user_id, p.created_at FROM posts p
+    INNER JOIN (SELECT topic_id, MIN(id) AS post FROM posts p
+                WHERE deleted_at ISNULL
+                AND post_type = 1
+                AND post_number > 1
+                GROUP BY topic_id) x ON x.post = p.id
+),
+
+tag_names AS (
+    SELECT t.id topic_id,
+    string_agg(tags.name, ', ' ORDER BY tags.name) AS "tags"
+    FROM topics t
+    JOIN topic_tags tt ON tt.topic_id = t.id
+    JOIN tags ON tags.id = tt.tag_id
+    GROUP BY t.id
+)
+
+
+
+SELECT
+    CASE 
+        WHEN st.id IS NOT NULL THEN 'solved'
+        ELSE 'unsolved'
+    END AS status,
+    vt.id AS topic_id,
+    concat_ws('', tn.tags) AS topic_tags,
+    vt.user_id topic_user_id,
+    vt.visible,
+    vt.archived,
+    ue.email,
+    vt.title,
+    vt.views,
+    s.user_id AS solver_user_id,
+    s.email AS solver_email,
+    concat_ws('', s.groups) AS solver_groups,
+    lr.user_id AS last_reply_user_id,
+    ue2.email AS last_reply_user_email,
+    vt.created_at::date topic_create,
+    fr.created_at::date AS first_reply_create,
+    st.created_at::date AS solution_create,
+    COALESCE(fr.created_at::date - vt.created_at::date,0) AS "time_first_reply(days)",
+    COALESCE(CEIL(extract(epoch from (fr.created_at - vt.created_at))/3600.00),0) as "time_first_reply(hours)",
+    COALESCE(st.created_at::date - vt.created_at::date,0) AS "time_solution(days)",
+    COALESCE(CEIL(extract(epoch from (st.created_at - vt.created_at))/3600.00),0) as "time_solution(hours)",
+    vt.created_at::date,
+    posts_count AS number_of_replies,
+    total_days AS total_days_without_solution
+FROM valid_topics vt
+LEFT JOIN last_reply lr ON lr.topic_id = vt.id
+LEFT JOIN first_reply fr ON fr.topic_id = vt.id
+LEFT JOIN solved_topics st ON st.id = vt.id
+LEFT JOIN solver s ON s.target_topic_id = vt.id
+LEFT JOIN tag_names tn ON vt.id=tn.topic_id
+INNER JOIN user_emails ue ON vt.user_id = ue.user_id AND ue."primary" = true
+LEFT JOIN user_emails ue2 ON lr.user_id = ue2.user_id AND ue2."primary" = true
+ORDER BY total_days DESC

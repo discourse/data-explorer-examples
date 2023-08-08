@@ -1,0 +1,15 @@
+Total views and total votes in a category. What is the total number of topic views and the total number of votes in a category?
+
+WITH vote_count AS (
+SELECT COUNT(pv.user_id) as "votes", t.category_id
+FROM poll_votes pv
+JOIN polls pl ON pv.poll_id=pl.id
+JOIN posts pt ON pl.post_id = pt.id
+JOIN topics t ON pt.topic_id=t.id
+GROUP BY t.category_id
+)
+
+SELECT t.category_id, SUM(views) as views, vc.votes
+FROM topics t
+FULL JOIN vote_count vc ON vc.category_id = t.category_id
+GROUP BY t.category_id, vc.votes

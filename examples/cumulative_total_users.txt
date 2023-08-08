@@ -1,0 +1,20 @@
+Cumulative Total Users. Show me the number of cumulative total users on the site, counted with signups. How many users have cumulatively signed up for the site? Include a "start_date" and "end_date" parameters. 
+
+-- [params]
+-- date :start_date
+-- date :end_date
+
+WITH daily_signups AS(
+SELECT
+    to_char(date_trunc('week', u.created_at)::date,'YYYY-MM-DD') AS Date,
+    Count (id) as Signups
+FROM users u
+WHERE
+    u.created_at::date BETWEEN :start_date::date AND :end_date::date
+GROUP BY Date
+)
+
+SELECT
+    Date, Signups, SUM(Signups) OVER (ORDER BY Date) as total_users
+FROM daily_signups
+ORDER BY Date Asc

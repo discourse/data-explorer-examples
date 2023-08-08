@@ -1,0 +1,10 @@
+Discourse AI Sentiment Report. Displays AI Sentiment Classification Results for topics using the sentiment model. Scores topics on negative, neutral, and positive sentiment. 
+
+SELECT target_id as post_id,
+model_used,
+classification->'negative' as negative,
+classification->'neutral' as neutral,
+classification->'positive' as positive
+from classification_results
+WHERE model_used = 'sentiment'
+order by id desc

@@ -1,0 +1,14 @@
+Discourse AI Emotion Report. Displays AI Classification Results for topics using the emotion model. Scores topics based on the following emotions: neutral, sadness, surprise, fear, anger, joy, and disgust. 
+
+SELECT target_id as post_id,
+model_used,
+classification->'neutral' as neutral,
+classification->'sadness' as sadness,
+classification->'surprise' as surprise,
+classification->'fear' as fear,
+classification->'anger' as anger,
+classification->'joy' as joy,
+classification->'disgust' as disgust
+from classification_results
+WHERE model_used = 'emotion'
+order by id desc

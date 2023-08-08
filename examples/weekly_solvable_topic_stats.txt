@@ -1,0 +1,75 @@
+Weekly Solvable topic statistics. Shows week by week statistics for all solvable topics on the site. Includes precentage and number of topics solved and unsolved, precentage and number of solvable topics with replies, and total number of solvable topics posted. Assumes topics in all topics and categories can be solved. Includes a `start_date` and `end_date` parameter. Give me weekly statistics about solvable questions on the site.
+
+--[params]
+--date :start_date = 2022-01-01
+--date :end_date = 2022-12-01
+
+WITH tag_questions AS (
+    SELECT 
+        topic_id, 
+        posts_count, 
+        t.created_at
+    FROM topic_tags tt
+    INNER JOIN topics t ON t.id = tt.topic_id
+        AND t.deleted_at ISNULL
+        AND t.created_at BETWEEN :start_date AND :end_date
+),
+tag_questions_week AS (
+    SELECT 
+        to_char(date_trunc('week', t.created_at)::date,'YYYY-MM-DD') AS "week",
+        COUNT(topic_id) AS total_question
+    FROM topic_tags tt
+    INNER JOIN topics t ON t.id = tt.topic_id
+        AND t.deleted_at ISNULL
+        AND t.created_at BETWEEN :start_date AND :end_date
+    GROUP BY date_trunc('week', t.created_at)::date
+),
+solved_topics AS (
+    SELECT
+       DISTINCT tcf.topic_id
+    FROM topic_custom_fields tcf
+    INNER JOIN tag_questions tq ON tq.topic_id = tcf.topic_id
+    WHERE name = 'accepted_answer_post_id'
+),
+    
+solved_topics_week AS (
+    SELECT
+        to_char(date_trunc('week', tq.created_at)::date,'YYYY-MM-DD') AS "week",
+        COUNT(tcf.topic_id) AS solved_topics
+    FROM topic_custom_fields tcf
+    INNER JOIN tag_questions tq ON tq.topic_id = tcf.topic_id
+    WHERE name = 'accepted_answer_post_id'
+    GROUP BY date_trunc('week', tq.created_at)::date
+),
+no_reply AS (
+    SELECT 
+        to_char(date_trunc('week', created_at)::date,'YYYY-MM-DD') AS "week",
+        COUNT(topic_id) AS no_reply
+    FROM tag_questions
+    WHERE posts_count = 1
+    GROUP BY date_trunc('week', created_at)::date
+),
+unsolved_replied AS (
+    SELECT 
+        to_char(date_trunc('week', created_at)::date,'YYYY-MM-DD') AS "week",
+        COUNT(topic_id) AS unsolved_replied
+    FROM tag_questions
+    WHERE topic_id NOT IN (SELECT topic_id FROM solved_topics)
+    AND  posts_count > 1
+    GROUP BY date_trunc('week', created_at)::date
+)
+
+SELECT 
+    tqm.week, 
+    solved_topics AS "solved",
+    TRUNC(solved_topics::decimal/total_question*100,2)||'%' AS "solved%",
+    no_reply,
+    TRUNC(no_reply::decimal/total_question*100,2)||'%' AS "no_reply%",
+    unsolved_replied,
+    TRUNC(unsolved_replied::decimal/total_question*100,2)||'%' AS "unsolved_replied%",
+    total_question
+FROM tag_questions_week tqm
+LEFT JOIN solved_topics_week stm ON stm.week = tqm.week
+LEFT JOIN no_reply nr ON nr.week = tqm.week
+LEFT JOIN unsolved_replied ur ON ur.week = tqm.week
+ORDER BY tqm.week DESC

@@ -1,0 +1,16 @@
+New topics. Shows all new topics that have been created within the selected timeframe. Accepts a `start_date` and `end_date` parameter. 
+
+--[params]
+-- date :start_date
+-- date :end_date
+
+SELECT 
+    p.id as topic_id
+FROM posts p
+INNER JOIN topics t ON t.id = p.topic_id
+WHERE p.created_at::date BETWEEN :start_date AND :end_date
+    --AND p.post_number = 1
+    --AND p.user_id > 0 
+  --  AND p.deleted_at ISNULL
+  --  AND t.archetype = 'regular'
+GROUP BY p.id

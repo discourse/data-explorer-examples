@@ -1,0 +1,13 @@
+Discourse AI toxicity Report. Displays AI toxicity results for topics and assigns toxicity scores to topics based on the following classifications: toxicity, severe toxicity, obscene, identity attack, insult, threat, sexualily explicit  
+
+SELECT target_id as post_id,
+classification->'toxicity' as toxicity,
+classification->'severe_toxicity' as severe_toxicity,
+classification->'obscene' as obscene,
+classification->'identity_attack' as identity_attack,
+classification->'insult' as insult,
+classification->'threat' as threat,
+classification->'sexual_explicit' as sexual_explicit
+From classification_results
+WHERE classification_type = 'toxicity'
+order by id desc

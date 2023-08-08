@@ -1,0 +1,104 @@
+Shows how many topics created, replies posted, questions solved, solutions marked, topics archived, and topics unlisted each user on the site has within the selected timeframe. Accepts a `start_date` and `end_date` parameter. 
+
+-- [params]
+-- date :start_date 
+-- date :end_date
+
+
+WITH qtt_topics AS (
+    SELECT 
+        t.user_id,
+        COUNT(*) AS topics
+    FROM topics t
+    WHERE    
+        t.user_id > 0 
+        AND t.deleted_at ISNULL
+        AND t.archetype = 'regular'
+        AND t.created_at::date BETWEEN :start_date AND :end_date
+    GROUP BY t.user_id
+    ),
+    
+qtt_replies AS (
+    SELECT 
+        p.user_id,
+        COUNT(*) AS replies
+    FROM posts p
+    WHERE    
+        p.user_id > 0 
+        AND p.deleted_at ISNULL
+        AND p.post_number != 1
+        AND p.created_at::date BETWEEN :start_date AND :end_date
+    GROUP BY p.user_id
+    ),
+
+questions_solved AS (
+SELECT  ua.user_id, 
+        count(*) as q_solved
+FROM user_actions ua
+WHERE action_type=15
+AND ua.created_at::date BETWEEN :start_date AND :end_date
+GROUP BY ua.user_id
+),
+
+questions_marked_solved AS (
+SELECT  ua.acting_user_id, 
+        count(*) as q_marked
+FROM user_actions ua
+WHERE action_type=15
+AND ua.created_at::date BETWEEN :start_date AND :end_date
+GROUP BY ua.acting_user_id
+),
+
+archived AS (
+SELECT p.user_id,
+       count(*) as topics_archived
+FROM posts p
+JOIN topics t ON t.id = p.topic_id
+WHERE p.post_type = 3
+AND p.action_code = 'archived.enabled'
+AND t.archived = TRUE
+AND p.updated_at::date BETWEEN :start_date AND :end_date
+GROUP BY p.user_id
+),
+
+unlisted AS (
+SELECT p.user_id,
+       count(*) as topics_unlisted
+FROM posts p
+JOIN topics t ON t.id = p.topic_id
+WHERE p.post_type = 3
+AND p.action_code = 'visible.disabled'
+AND t.visible = FALSE
+AND p.updated_at::date BETWEEN :start_date AND :end_date
+GROUP BY p.user_id
+),
+
+total AS (
+    SELECT
+        COALESCE(qr.user_id, qt.user_id, qs.user_id, qms.acting_user_id, arc.user_id, unl.user_id) user_id,
+        COALESCE(topics,0) qtt_topics,
+        COALESCE(replies,0) qtt_replies,
+        COALESCE(q_solved,0) questions_solved,
+        COALESCE(q_marked,0) questions_marked_solved, 
+        COALESCE(topics_archived,0) archived,
+        COALESCE(topics_unlisted,0) unlisted
+    FROM qtt_topics qt
+    FULL JOIN qtt_replies qr ON qt.user_id = qr.user_id
+    FULL JOIN questions_solved qs ON qt.user_id = qs.user_id
+    FULL JOIN questions_marked_solved qms ON qt.user_id = qms.acting_user_id
+    FULL JOIN archived arc ON qt.user_id = arc.user_id
+    FULL JOIN unlisted unl ON qt.user_id = unl.user_id
+    ORDER BY user_id
+)
+
+SELECT 
+    username,
+    id as "user_id",
+    qtt_topics as "topics created",
+    qtt_replies as "replies posted",
+    questions_solved as "questions solved",
+    questions_marked_solved as "solutions marked", 
+    archived as "topics archived",
+    unlisted as "topics unlisted"
+FROM total
+INNER JOIN users u ON u.id = user_id

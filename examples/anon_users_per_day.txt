@@ -1,0 +1,14 @@
+Number of anonymous users per day. Show me the total number of anonymous users that visited the site each day. Include a `start_date` and `end_date` parameter. How many anonymous users visited the site over a period of time? 
+
+-- [params]
+-- date :start_date
+-- date :end_date
+SELECT
+    date_trunc('day', viewed_at)::DATE AS date_user_visits,
+    COUNT(DISTINCT ip_address) AS visits
+FROM topic_views tv
+WHERE tv.user_id ISNULL
+AND viewed_at::date BETWEEN :start_date::date
+AND :end_date::date
+GROUP BY date_user_visits
+ORDER BY date_user_visits

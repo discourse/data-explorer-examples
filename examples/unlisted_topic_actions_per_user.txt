@@ -1,0 +1,10 @@
+How many topics has each user marked as unlisted? 
+
+SELECT p.user_id,
+       count(*) as topics_unlisted
+FROM posts p
+JOIN topics t ON t.id = p.topic_id
+WHERE p.post_type = 3
+AND p.action_code = 'visible.disabled'
+AND t.visible = FALSE
+GROUP BY p.user_id

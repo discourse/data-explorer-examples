@@ -1,0 +1,125 @@
+Gamification Leaderboard. Show me a query that will mimic the gamification leaderboard statistics. What are the gamification statistics for each user over range of dates? Include a `start_date` and `end_date` parameter.
+
+-- [params]
+-- string :date_start
+-- string :date_end
+
+WITH pr AS (
+    SELECT user_id, COUNT(1) AS visits,
+        SUM(posts_read) AS posts_read
+    FROM user_visits
+    WHERE posts_read > 0
+    AND visited_at BETWEEN :date_start AND :date_end
+    GROUP BY
+        user_id
+),
+pc AS (
+    SELECT user_id, COUNT(1) AS posts_created
+    FROM posts
+    WHERE
+        created_at BETWEEN :date_start AND :date_end
+    GROUP BY
+        user_id
+),
+ttopics AS (
+    SELECT user_id, posts_count
+    FROM topics
+    WHERE created_at BETWEEN :date_start AND :date_end
+),
+tc AS (
+    SELECT user_id, COUNT(1) AS topics_created
+    FROM ttopics
+    GROUP BY user_id
+),
+tv AS (
+    SELECT user_id,
+        COUNT(DISTINCT(topic_id)) AS topics_viewed
+    FROM topic_views
+    WHERE viewed_at BETWEEN :date_start AND :date_end
+    GROUP BY user_id
+),
+likes AS (
+    SELECT post_actions.user_id AS given_by_user_id,
+        posts.user_id AS received_by_user_id
+    FROM post_actions
+        LEFT JOIN
+        posts
+        ON post_actions.post_id = posts.id
+    WHERE
+        post_actions.created_at BETWEEN :date_start AND :date_end
+        AND post_action_type_id = 2
+),
+lg AS (
+    SELECT given_by_user_id AS user_id,
+        COUNT(1) AS likes_given
+    FROM likes
+    GROUP BY user_id
+),
+lr AS (
+    SELECT received_by_user_id AS user_id,
+        COUNT(1) AS likes_received
+    FROM likes
+    GROUP BY user_id
+),
+e AS (
+    SELECT email, user_id
+    FROM user_emails u
+    WHERE u.PRIMARY = TRUE
+),
+
+solutions AS (
+    SELECT 
+        ua.user_id,
+        count(1) AS solved_count
+    FROM user_actions ua
+    INNER JOIN users ON users.id = ua.user_id
+    WHERE ua.action_type = 15
+        AND ua.created_at BETWEEN :date_start AND :date_end
+    GROUP BY ua.user_id 
+),
+
+invites AS (
+SELECT invited_by_id as user_id, COUNT(invited_by_id) as invited_users
+FROM invites
+WHERE redeemed_at IS NOT NULL
+AND redeemed_at BETWEEN :date_start AND :date_end
+GROUP BY invited_by_id
+),
+
+auth0_employees AS (SELECT user_id FROM group_users WHERE group_id = 41)
+
+SELECT
+    pr.user_id,
+    username,
+    email,
+    COALESCE(solved_count,0) AS solutions,
+    COALESCE(topics_viewed, 0) AS topics_viewed,
+    COALESCE(posts_read, 0) AS posts_read,
+    COALESCE(posts_created, 0) AS posts_created,
+    COALESCE(topics_created, 0) AS topics_created,
+    COALESCE(likes_given, 0) AS likes_given,
+    COALESCE(likes_received, 0) AS likes_received,
+    COALESCE(invited_users,0) AS invites,
+    (
+        (COALESCE(solved_count,0) * 25) +
+        (COALESCE(topics_viewed,0) * 10) +
+        (COALESCE(posts_read,0) * 10) + 
+        (COALESCE(posts_created,0) * 20) +
+        (COALESCE(topics_created,0) * 20) +
+        (COALESCE(likes_given,0) * 5) +
+        (COALESCE(likes_received,0) * 10) +
+        (COALESCE(invited_users,0) * 20) 
+    ) AS total_points
+    
+FROM pr
+LEFT JOIN solutions USING (user_id)
+LEFT JOIN invites USING (user_id)
+LEFT JOIN tv USING (user_id)
+LEFT JOIN pc USING (user_id)
+LEFT JOIN tc USING (user_id)
+LEFT JOIN lg USING (user_id)
+LEFT JOIN lr USING (user_id)
+LEFT JOIN e USING (user_id)
+LEFT JOIN users ON pr.user_id = users.id
+WHERE pr.user_id NOT IN (SELECT * FROM auth0_employees)
+ORDER BY total_points DESC

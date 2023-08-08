@@ -1,0 +1,42 @@
+Show me a count of the unique anonymous and logged in users who viewed at least one topic over a selected timeframe. Includes a `start_date` and `end_date` parameter. How many anonymous and logged in users viewed at least one topic over a range of dates? 
+
+--[params]
+-- date :start_date = '2023-01-01'
+-- date :end_date = '2024-01-01'
+
+WITH anon_and_loggedin_views AS (
+    SELECT COUNT(DISTINCT(
+        CASE 
+            WHEN user_id IS NOT NULL THEN user_id
+            ELSE NULL
+        END)) logged_in_users_count,
+        COUNT(DISTINCT(
+        CASE 
+            WHEN user_id ISNULL THEN ip_address
+            ELSE NULL
+        END)) anon_users_count
+        
+    FROM topic_views tv
+    WHERE viewed_at::date
+    BETWEEN :start_date AND :end_date
+)
+,verification_query AS(
+    SELECT (
+            SELECT COUNT(DISTINCT(user_id))
+            FROM topic_views tv
+            WHERE user_id IS NOT NULL
+            AND viewed_at::date
+            BETWEEN :start_date AND :end_date
+        ) AS logged_in_users_count,
+        (
+            SELECT COUNT(DISTINCT(ip_address))
+            FROM topic_views tv
+            WHERE user_id ISNULL
+            AND viewed_at::date
+            BETWEEN :start_date AND :end_date
+        ) AS anon_users_count
+    )
+SELECT 
+    vq.logged_in_users_count verified_login_count, 
+    vq.anon_users_count verified_anon_count
+FROM anon_and_loggedin_views orig, verification_query vq
