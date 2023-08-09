@@ -1,0 +1,4 @@
+task :generate_embeddings do
+  puts "Generating embeddings for all queries using OpenAI Ada..."
+  # Call the script or program that generates the embeddings here
+end
