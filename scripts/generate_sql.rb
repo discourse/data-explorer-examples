@@ -18,10 +18,11 @@ def get_schema
   priority_tables = %w[posts topics notifications users user_actions]
 
   DB
-    .query(
-      "select table_name, column_name from information_schema.columns order by case when table_name in (?) then 0 else 1 end asc, table_name ",
-      priority_tables
-    )
+    .query(<<~SQL, priority_tables)
+        select table_name, column_name from information_schema.columns
+        where table_schema = 'public'
+        order by case when table_name in (?) then 0 else 1 end asc, table_name
+      SQL
     .each do |row|
       if table_name != row.table_name
         schema << "#{table_name}(#{columns.join(",")})" if columns
@@ -69,18 +70,6 @@ def get_messages(schema, question)
        SQL
   ]
 
-  chunked = []
-  chunk = +""
-  schema.each do |table|
-    chunk << table
-    chunk << " "
-    if chunk.length > 4000
-      chunked << chunk
-      chunk = +""
-    end
-  end
-  chunked << chunk if chunk.length > 0
-
   # find_closest(question, count: 1).each do |name|
   #   question, sql = get_example(name)
   #   p question
@@ -89,9 +78,10 @@ def get_messages(schema, question)
   #   messages << { role: "assistant", content: sql }
   # end
 
-  chunked[0..8].each do |data|
-    messages << { role: "user", content: "db schema: " + data }
-  end
+  messages << {
+    role: "system",
+    content: "consider the DB has this schema:\n #{schema.join("\n")}"
+  }
 
   messages << { role: "user", content: question }
 
@@ -171,6 +161,9 @@ def main
   schema = get_schema
   messages = get_messages(schema, question)
   response_data = send_request(messages)
+
+  p response_data
+
   text = response_data.dig("choices", 0, "message", "content")
 
   if !text
