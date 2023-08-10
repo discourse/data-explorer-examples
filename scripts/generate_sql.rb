@@ -1,4 +1,6 @@
-require "openai"
+require "net/http"
+require "uri"
+require "json"
 require "pg"
 require "mini_sql"
 
@@ -83,11 +85,16 @@ end
 
 messages << { role: "user", content: question }
 
-client = OpenAI::Client.new(access_token: API_KEY)
-response =
-  client.chat(parameters: { model: "gpt-3.5-turbo", messages: messages })
-
-text = response.dig("choices", 0, "message", "content")
+uri = URI("https://api.openai.com/v1/engines/davinci-codex/completions")
+http = Net::HTTP.new(uri.host, uri.port)
+http.use_ssl = true
+request = Net::HTTP::Post.new(uri.request_uri)
+request["Content-Type"] = "application/json"
+request["Authorization"] = "Bearer #{API_KEY}"
+request.body = { model: "gpt-3.5-turbo", messages: messages }.to_json
+response = http.request(request)
+response_data = JSON.parse(response.body)
+text = response_data.dig("choices", 0, "message", "content")
 
 #p response
 
