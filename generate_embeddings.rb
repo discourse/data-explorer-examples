@@ -21,6 +21,9 @@ Dir.glob('examples/*.txt').each do |file|
     http.request(request)
   end
 
-  # Print the response
-  puts response.body
+  # Save the response to a JSON file
+  sha = Digest::SHA256.hexdigest(description)
+  File.open("embeddings/#{sha}.json", 'w') do |f|
+    f.write(JSON.pretty_generate(JSON.parse(response.body).merge({"sha" => sha})))
+  end
 end
