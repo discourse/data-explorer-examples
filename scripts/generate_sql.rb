@@ -2,7 +2,7 @@ require "openai"
 require "pg"
 require "mini_sql"
 
-API_KEY = ENV["OPEN_AI_API_KEY"]
+API_KEY = ENV["OPENAI_API_KEY"]
 
 pg_conn = PG.connect(dbname: "discourse_development")
 conn = MiniSql::Connection.get(pg_conn)
