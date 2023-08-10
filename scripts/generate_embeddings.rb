@@ -1,6 +1,7 @@
 require "net/http"
 require "json"
 require "uri"
+require "digest"
 
 EMBEDDINGS_DIR = File.join(__dir__, "../examples/embeddings")
 EXAMPLES_DIR = File.join(__dir__, "../examples")
