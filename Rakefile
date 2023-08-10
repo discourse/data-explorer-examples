@@ -1,10 +1,8 @@
 require 'rake'
 
 namespace :ada do
-  desc 'Generate ADA embeddings for all SQL files in the examples directory'
+  desc 'Generate ADA embeddings for all text files in the examples directory'
   task :generate_embeddings do
-    Dir.glob('examples/*.sql').each do |file|
-      system("python generate_embeddings.py #{file} embeddings")
-    end
+    system("ruby generate_embeddings.rb")
   end
 end
