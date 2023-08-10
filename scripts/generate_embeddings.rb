@@ -20,7 +20,7 @@ Dir
 
     sha = Digest::SHA256.hexdigest(description)
 
-    embed_filename = "embeddings/#{File.basename(file, ".txt")}.json"
+    embed_filename = "#{EMBEDDINGS_DIR}/#{File.basename(file, ".txt")}.json"
 
     existing_sha =
       begin
@@ -30,9 +30,9 @@ Dir
       end
 
     if existing_sha == sha
-      puts "Embedding for #{file} already exists. Skipping..."
+      puts "Embedding for #{File.basename(file)} already exists. Skipping..."
     else
-      puts "Generating embedding for #{file}..."
+      puts "Generating embedding for #{File.basename(file)}..."
 
       request.body =
         JSON.dump(
