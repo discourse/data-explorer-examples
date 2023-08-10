@@ -10,9 +10,9 @@ request = Net::HTTP::Post.new(uri)
 request.content_type = "application/json"
 request["Authorization"] = "Bearer #{ENV['OPENAI_API_KEY']}"
 Dir.glob('examples/*.txt').each do |file|
-  text = File.read(file)
+  description = File.open(file, &:readline).strip
   request.body = JSON.dump({
-    "input" => text,
+    "input" => description,
     "model" => "text-embedding-ada-002"
   })
 
