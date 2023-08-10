@@ -162,7 +162,7 @@ def main
   messages = get_messages(schema, question)
   response_data = send_request(messages)
 
-  p response_data
+  #p response_data
 
   text = response_data.dig("choices", 0, "message", "content")
 
