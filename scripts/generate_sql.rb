@@ -85,7 +85,7 @@ end
 
 messages << { role: "user", content: question }
 
-uri = URI("https://api.openai.com/v1/engines/davinci-codex/completions")
+uri = URI("https://api.openai.com/v1/chat/completions")
 http = Net::HTTP.new(uri.host, uri.port)
 http.use_ssl = true
 request = Net::HTTP::Post.new(uri.request_uri)
