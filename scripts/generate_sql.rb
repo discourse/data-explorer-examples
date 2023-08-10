@@ -4,17 +4,20 @@ require "json"
 require "pg"
 require "mini_sql"
 
-def get_schema
-  pg_conn = PG.connect(dbname: "discourse_development")
-  conn = MiniSql::Connection.get(pg_conn)
+API_KEY = ENV["OPENAI_API_KEY"]
+RAW_DB = PG.connect(dbname: "discourse_development")
+DB = MiniSql::Connection.get(RAW_DB)
+EMBEDDINGS_DIR = File.join(__dir__, "../examples/embeddings")
+EXAMPLES_DIR = File.join(__dir__, "../examples")
 
+def get_schema
   schema = []
   table_name = nil
   columns = nil
 
   priority_tables = %w[posts topics notifications users user_actions]
 
-  conn
+  DB
     .query(
       "select table_name, column_name from information_schema.columns order by case when table_name in (?) then 0 else 1 end asc, table_name ",
       priority_tables
@@ -78,7 +81,15 @@ def get_messages(schema, question)
   end
   chunked << chunk if chunk.length > 0
 
-  chunked[0..2].each do |data|
+  # find_closest(question, count: 1).each do |name|
+  #   question, sql = get_example(name)
+  #   p question
+  #   p sql
+  #   messages << { role: "user", content: question }
+  #   messages << { role: "assistant", content: sql }
+  # end
+
+  chunked[0..8].each do |data|
     messages << { role: "user", content: "db schema: " + data }
   end
 
@@ -99,16 +110,65 @@ def send_request(messages)
   request = Net::HTTP::Post.new(uri.request_uri)
   request["Content-Type"] = "application/json"
   request["Authorization"] = "Bearer #{API_KEY}"
-  request.body = { model: "gpt-3.5-turbo", messages: messages }.to_json
+  request.body = { model: "gpt-3.5-turbo-16k", messages: messages }.to_json
   response = http.request(request)
   JSON.parse(response.body)
 end
 
-def main
-  API_KEY = ENV["OPENAI_API_KEY"]
+def get_embeddings(description)
+  uri = URI.parse("https://api.openai.com/v1/embeddings")
+  request = Net::HTTP::Post.new(uri)
+  request.content_type = "application/json"
+  request["Authorization"] = "Bearer #{ENV["OPENAI_API_KEY"]}"
 
-  schema = get_schema
+  request.body =
+    JSON.dump({ "input" => description, "model" => "text-embedding-ada-002" })
+
+  response =
+    Net::HTTP.start(
+      uri.hostname,
+      uri.port,
+      use_ssl: uri.scheme == "https"
+    ) { |http| http.request(request) }
+
+  JSON.parse(response.body)["data"][0]["embedding"]
+end
+
+def find_closest(text, count: 3)
+  DB.query("BEGIN")
+  DB.query(
+    "CREATE TEMP TABLE helper_embeddings (id serial primary key, name text, embeddings vector(1536))"
+  )
+
+  Dir
+    .glob(File.join(EMBEDDINGS_DIR, "*.json"))
+    .each do |file|
+      json = JSON.parse(File.read(file))
+      DB.exec(
+        "INSERT INTO helper_embeddings (name, embeddings) VALUES (:name, '[:embeddings]')",
+        name: File.basename(file, ".json"),
+        embeddings: json["data"][0]["embedding"]
+      )
+    end
+
+  names =
+    DB.query_single(
+      "SELECT name FROM helper_embeddings ORDER BY embeddings <-> '[:embeddings]' limit :limit",
+      embeddings: get_embeddings(text),
+      limit: count
+    )
+  DB.query("ROLLBACK")
+
+  names
+end
+
+def get_example(name)
+  File.read(File.join(EXAMPLES_DIR, "#{name}.txt")).split("\n", 2).map(&:strip)
+end
+
+def main
   question = get_question
+  schema = get_schema
   messages = get_messages(schema, question)
   response_data = send_request(messages)
   text = response_data.dig("choices", 0, "message", "content")
