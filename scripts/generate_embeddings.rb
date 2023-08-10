@@ -21,9 +21,23 @@ Dir.glob('examples/*.txt').each do |file|
     http.request(request)
   end
 
-  # Save the response to a JSON file
+  # Generate SHA256 hash of the description
   sha = Digest::SHA256.hexdigest(description)
-  File.open("embeddings/#{sha}.json", 'w') do |f|
-    f.write(JSON.pretty_generate(JSON.parse(response.body).merge({"sha" => sha})))
+  
+  # Check if a file with the same SHA256 hash already exists
+  if File.exist?("embeddings/#{sha}.json")
+    puts "Embedding for #{file} already exists. Skipping..."
+  else
+    puts "Generating embedding for #{file}..."
+    
+    # Send the request
+    response = Net::HTTP.start(uri.hostname, uri.port, :use_ssl => uri.scheme == 'https') do |http|
+      http.request(request)
+    end
+
+    # Save the response to a JSON file
+    File.open("embeddings/#{File.basename(file, '.txt')}.json", 'w') do |f|
+      f.write(JSON.pretty_generate(JSON.parse(response.body).merge({"sha" => sha})))
+    end
   end
 end
