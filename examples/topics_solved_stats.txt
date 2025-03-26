@@ -23,12 +23,11 @@ WITH valid_topics AS (
 ),
 
 solved_topics AS (
-    SELECT 
+    SELECT
         vt.id,
-        tcf.created_at
-    FROM topic_custom_fields tcf
-    INNER JOIN valid_topics vt ON vt.id = tcf.topic_id
-    WHERE tcf.name = 'accepted_answer_post_id'
+        dsst.created_at
+    FROM discourse_solved_solved_topics dsst
+    INNER JOIN valid_topics vt ON vt.id = dsst.topic_id
 ),
 
 solver AS (

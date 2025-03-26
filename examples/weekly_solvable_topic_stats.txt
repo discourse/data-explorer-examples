@@ -26,19 +26,17 @@ tag_questions_week AS (
 ),
 solved_topics AS (
     SELECT
-       DISTINCT tcf.topic_id
-    FROM topic_custom_fields tcf
-    INNER JOIN tag_questions tq ON tq.topic_id = tcf.topic_id
-    WHERE name = 'accepted_answer_post_id'
+       DISTINCT dsst.topic_id
+    FROM discourse_solved_solved_topics dsst
+    INNER JOIN tag_questions tq ON tq.topic_id = dsst.topic_id
 ),
     
 solved_topics_week AS (
     SELECT
         to_char(date_trunc('week', tq.created_at)::date,'YYYY-MM-DD') AS "week",
-        COUNT(tcf.topic_id) AS solved_topics
-    FROM topic_custom_fields tcf
-    INNER JOIN tag_questions tq ON tq.topic_id = tcf.topic_id
-    WHERE name = 'accepted_answer_post_id'
+        COUNT(dsst.topic_id) AS solved_topics
+    FROM discourse_solved_solved_topics dsst
+    INNER JOIN tag_questions tq ON tq.topic_id = dsst.topic_id
     GROUP BY date_trunc('week', tq.created_at)::date
 ),
 no_reply AS (
